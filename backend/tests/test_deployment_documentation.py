@@ -15,10 +15,10 @@ def test_deployment_document_exists_and_covers_required_sections():
         "## API 키 발급처",
         "## 로컬 실행법",
         "## Render 백엔드 배포",
-        "## Vercel 프론트엔드 배포",
+        "## Vercel 프론트엔드 + Serverless fallback 배포",
         "## 배포 후 헬스체크",
         "## 보안 주의사항",
-        "## 남은 배포 준비 작업",
+        "## 남은 운영 개선 작업",
     ]
     for section in required_sections:
         assert section in content

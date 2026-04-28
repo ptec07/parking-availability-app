@@ -1,8 +1,8 @@
 # 주차될까 배포 가이드
 
-이 문서는 서울 공영주차장 실시간 데이터 기반 PWA MVP **주차될까**를 Render 백엔드 + Vercel 프론트엔드 구조로 배포하기 위한 절차를 정리한다.
+이 문서는 서울 공영주차장 실시간 데이터 기반 PWA MVP **주차될까**를 배포·운영하기 위한 절차를 정리한다.
 
-> 현재 문서는 **배포 준비 문서**다. 실제 Render/Vercel 배포는 아직 수행하지 않았고, 별도 GitHub repo와 배포 계정 인증이 필요하다.
+현재 production MVP는 Vercel SPA + Vercel Serverless API fallback 구조로 배포되어 있다. Render 백엔드는 운영 동기화/영구 DB가 필요한 후속 단계로 남긴다.
 
 ---
 
@@ -11,11 +11,12 @@
 - 로컬 통합 실행: 완료
 - 백엔드 로컬 앱: `uvicorn app.main:app`로 실행 가능
 - 프론트 로컬 앱: Vite dev server에서 `/api`를 `http://127.0.0.1:8000`으로 프록시
-- 배포 파일 준비: 완료 (`backend/requirements.txt`, `render.yaml`, `frontend/vercel.json`)
-- 실제 외부 배포: 미진행 — 현재 환경에는 별도 GitHub repo/Render/Vercel 인증이 없어 차단됨
+- GitHub repo: `https://github.com/ptec07/parking-availability-app`
+- Production frontend/API: `https://parking-availability-app.vercel.app`
+- Production API 방식: Vercel Serverless function same-origin fallback (`/api/geocode`, `/api/parking-lots`)
 - 실제 서울/Kakao API 키 기반 전체 동기화: CLI 구현 완료, 임시 DB에서 `fetched=124 saved=124`, 보정 후 `geocoded=15 failed=0`, 좌표 누락 `0`건 검증 완료
-- Kakao 지도 SDK: `VITE_KAKAO_JAVASCRIPT_KEY` 기반 프론트 렌더링 코드 완료, 로컬 Kakao 도메인 등록 후 실제 지도/마커 렌더링 확인 완료
-- 현재 로컬 기본 DB: `backend/parking.db`에 실제 서울 데이터 동기화/지오코딩 완료. 운영 배포 DB는 새 DB에서 seed 없이 생성 권장
+- Kakao 지도 SDK: `VITE_KAKAO_JAVASCRIPT_KEY` 기반 프론트 렌더링 코드 완료, 로컬/production 브라우저에서 실제 지도/마커 렌더링 확인 완료
+- 현재 로컬 기본 DB: `backend/parking.db`에 실제 서울 데이터 동기화/지오코딩 완료. Vercel fallback은 이 DB에서 export한 정적 `parking_lots.json`을 사용
 
 현재 확인된 로컬 API 계약:
 
@@ -25,12 +26,11 @@ GET /api/geocode?query=강남역
 GET /api/parking-lots?lat=37.5665&lng=126.978&radius_m=3000
 ```
 
-최근 로컬 smoke 결과:
+최근 production smoke 결과:
 
-- `/api/geocode?query=강남역` → HTTP 200, 강남역 좌표 반환
-- 강남역 주변 `/api/parking-lots` → `count=4`
-- 서울시청 주변 `/api/parking-lots` → `count=43`
-- 브라우저 `강남역` 검색 → Kakao 지도 + 주차장 카드 4곳 + fallback 없음
+- `https://parking-availability-app.vercel.app/api/geocode?query=강남역` → HTTP 200, 강남역 좌표 반환
+- `https://parking-availability-app.vercel.app/api/parking-lots?lat=37.49808633653005&lng=127.02800140627488&radius_m=3000` → HTTP 200, `count=4`
+- 브라우저 `강남역` 검색 → `강남역 주변 주차장`, Kakao 지도 + 주차장 카드 4곳, console error 없음
 
 ---
 
@@ -60,7 +60,17 @@ APP_ENV=production
 | `FRONTEND_ORIGIN` | CORS 허용 프론트 URL | `create_app(..., frontend_origin=...)` 또는 환경변수로 적용 |
 | `APP_ENV` | 실행 환경 구분 | 예: `production` |
 
-### 프론트엔드(Vercel) 환경변수
+### 프론트엔드/Vercel 환경변수
+
+Vercel Serverless fallback 사용 시:
+
+```bash
+VITE_API_BASE_URL=/api
+VITE_KAKAO_JAVASCRIPT_KEY=[REDACTED]
+KAKAO_REST_API_KEY=***
+```
+
+Render 등 별도 백엔드 사용 시:
 
 ```bash
 VITE_API_BASE_URL=https://<render-service>.onrender.com
@@ -71,10 +81,11 @@ VITE_KAKAO_JAVASCRIPT_KEY=[REDACTED]
 
 | 변수 | 용도 | 비고 |
 | --- | --- | --- |
-| `VITE_API_BASE_URL` | 배포 프론트가 호출할 백엔드 base URL | 미설정 시 로컬 기본값 `/api`, 설정 시 `<origin>/api/...`로 호출 |
+| `VITE_API_BASE_URL` | 배포 프론트가 호출할 API base URL | Vercel fallback은 `/api`, 별도 Render backend는 `<origin>` |
 | `VITE_KAKAO_JAVASCRIPT_KEY` | Kakao Maps JavaScript SDK 키 | 브라우저 노출 가능 키지만 도메인 제한 필수 |
+| `KAKAO_REST_API_KEY` | Vercel Serverless `/api/geocode`에서 쓰는 Kakao Local REST 키 | 서버 사이드 전용, `VITE_` prefix 금지 |
 
-> 주의: `KAKAO_REST_API_KEY`는 프론트에 넣지 않는다. Kakao REST API 호출은 서버에서만 수행한다.
+> 주의: `KAKAO_REST_API_KEY`는 브라우저용 `VITE_` 환경변수로 넣지 않는다. Kakao REST API 호출은 FastAPI 백엔드 또는 Vercel Serverless function에서만 수행한다.
 
 ---
 
@@ -298,29 +309,47 @@ CLI는 실제 키 값을 출력하지 않고 처리 결과 count만 출력한다
 
 ---
 
-## Vercel 프론트엔드 배포
+## Vercel 프론트엔드 + Serverless fallback 배포
 
-### 권장 설정
+### 현재 production 구성
 
 - Project root: `frontend`
 - Framework preset: Vite
 - Build command: `npm run build`
 - Output directory: `dist`
+- Production URL: `https://parking-availability-app.vercel.app`
+- Same-origin API:
+  - `GET /api/geocode?query=강남역`
+  - `GET /api/parking-lots?lat=...&lng=...&radius_m=...`
 
 Vercel 환경변수:
 
 ```bash
-VITE_API_BASE_URL=https://<render-service>.onrender.com
+VITE_API_BASE_URL=/api
 VITE_KAKAO_JAVASCRIPT_KEY=[REDACTED]
+KAKAO_REST_API_KEY=***
 ```
 
 프론트는 `src/api.ts`의 `buildApiUrl()`에서 `VITE_API_BASE_URL`을 읽는다.
 
-- 로컬 기본값: `/api`
-- Vercel 운영값 예: `https://<render-service>.onrender.com`
-- 실제 요청 예: `https://<render-service>.onrender.com/api/parking-lots?...`
+- production fallback: `/api`
+- 별도 Render backend 사용 시 예: `https://<render-service>.onrender.com`
+- 실제 production 요청 예: `https://parking-availability-app.vercel.app/api/parking-lots?...`
 
-백엔드는 `FRONTEND_ORIGIN=https://<vercel-project>.vercel.app`으로 Vercel origin을 CORS 허용한다.
+### Serverless fallback 구현
+
+Render backend가 준비되지 않아도 production MVP 검색이 동작하도록 `frontend/api/` 아래에 Vercel functions를 둔다.
+
+- `frontend/api/geocode.js`: Kakao Local REST API로 목적지 좌표 검색
+- `frontend/api/parking-lots.js`: 정적 `parking_lots.json` 기반 반경 검색/점수화
+- `frontend/api/_core.js`: CommonJS serverless 공유 로직
+- `frontend/api/parking_lots.json`: `backend/parking.db`에서 export한 읽기 전용 주차장 데이터
+
+주의:
+
+- Vercel function은 Node runtime 호환성을 위해 CommonJS `.js` 형태를 사용한다.
+- TypeScript API handler는 production에서 `FUNCTION_INVOCATION_FAILED`가 발생한 적이 있어 사용하지 않는다.
+- 정적 JSON fallback은 최신 실시간 sync가 자동 반영되지 않는다. 운영 동기화가 필요하면 Render backend 또는 별도 data refresh 배포 파이프라인을 추가한다.
 
 배포 후에는 Kakao Developers의 JavaScript 키 Web 플랫폼 도메인에 실제 Vercel origin을 추가해야 한다.
 
@@ -386,23 +415,21 @@ curl -i "$FRONTEND_URL/"
 
 ---
 
-## 남은 배포 준비 작업
+## 남은 운영 개선 작업
 
-이번 단계에서 의존성 파일, Render blueprint, Vercel SPA 설정, 프론트 API base URL helper, 백엔드 CORS 기반, 목적지 geocode API, Kakao 지도 렌더링은 추가했다. 실제 외부 배포 전에 아래 작업이 남아 있다.
+현재 production MVP는 Vercel same-origin API fallback으로 동작한다. 후속 운영 개선은 아래 순서로 진행한다.
 
-1. 별도 GitHub repo 준비 및 첫 push
-   - 현재 프로젝트는 상위 Hermes repo 기준 untracked 상태이며 remote가 `NousResearch/hermes-agent.git`라 그대로 push 금지
-2. Render/Vercel 인증 준비
-   - 현재 확인 결과 `vercel` CLI 없음, `RENDER_API_KEY`/`VERCEL_TOKEN`/`GITHUB_TOKEN`/`GH_TOKEN` 없음, `gh auth status` 미인증
-3. Render 서비스 생성 및 영구 디스크 연결
-   - `render.yaml` 기준으로 서비스 생성 후 `/var/data` 디스크 mount 확인
-4. Vercel 프로젝트 생성 및 환경변수 등록
+1. Render 백엔드 생성 및 영구 디스크 연결
+   - `render.yaml` 기준 서비스 생성 후 `/var/data` 디스크 mount 확인
+2. Vercel `VITE_API_BASE_URL`을 Render backend origin으로 전환
    - `VITE_API_BASE_URL=https://<render-service>.onrender.com`
-5. 서울/Kakao 데이터 sync 주기 실행 설정
+3. 서울/Kakao 데이터 sync 주기 실행 설정
    - Render cron job 또는 외부 스케줄러에서 `python -m app.cli sync-seoul-parking` 후 `geocode-missing-coordinates` 실행
-6. 실제 서울/Kakao API 키를 Render/Vercel 환경변수로 등록
-7. Vercel 배포 URL을 Kakao Developers JavaScript Web 도메인에 추가
-8. 배포 후 `/api/health`, `/api/geocode`, `/api/parking-lots`, 프론트 브라우저 QA 확인
+4. 운영 데이터 신선도 개선
+   - Vercel 정적 JSON fallback은 최신 실시간 데이터 자동 반영이 아니므로 장기 운영에는 Render backend 또는 data refresh pipeline 권장
+5. Kakao Developers JavaScript Web 도메인 관리
+   - production: `https://parking-availability-app.vercel.app`
+   - local: `http://localhost:5173`, `http://127.0.0.1:5173`
 
 ---
 
@@ -423,6 +450,7 @@ npm run build
 
 ```text
 backend: 42 passed
-frontend: 6 files / 17 tests passed
+frontend: 7 files / 20 tests passed
 frontend build: success
+production smoke: 강남역 geocode 200, parking-lots count=4, 브라우저 결과 화면/지도/카드 정상
 ```

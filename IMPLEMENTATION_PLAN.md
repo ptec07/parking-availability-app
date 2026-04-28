@@ -506,17 +506,40 @@ browser smoke: 강남역 검색 결과 4곳 + Kakao 지도 정상
 
 ---
 
-### Task 18: Render/Vercel 실제 배포 가능성 점검
+### Task 18: Production 배포 및 Vercel Serverless API fallback
 
-**Status:** 진행 차단 — 배포 준비 파일은 이미 존재하지만, 현재 환경에는 실제 배포를 실행할 인증/대상 repo 정보가 없다. 프로젝트는 상위 Hermes repo 기준 `?? ./` untracked 상태이고, remote는 `NousResearch/hermes-agent.git`로 설정되어 있어 그대로 push/deploy하면 안 된다. `vercel` CLI 없음, `RENDER_API_KEY`/`VERCEL_TOKEN`/`GITHUB_TOKEN`/`GH_TOKEN` 없음, `gh auth status`도 인증되지 않았다. 따라서 실제 Render/Vercel 배포는 별도 GitHub repo와 배포 인증이 준비된 뒤 진행해야 한다.
+**Status:** 완료 — GitHub 별도 repo(`https://github.com/ptec07/parking-availability-app`)를 생성/push하고 Vercel production에 배포했다. Render backend는 private repo fetch 문제로 우선 보류하고, production MVP 검색을 살리기 위해 Vercel same-origin Serverless API fallback을 구현했다. TypeScript API handler는 production에서 `FUNCTION_INVOCATION_FAILED`가 발생해 CommonJS function(`frontend/api/*.js`)으로 전환했다. `backend/parking.db`의 실데이터를 `parking_lots.json`으로 export하여 `/api/parking-lots`가 SQLite 없이 반경 검색/점수화를 수행한다. 최종 production smoke에서 `강남역` geocode HTTP 200, parking-lots `count=4`, 브라우저 결과 화면/Kakao 지도/주차장 카드 4곳/console error 없음 확인.
 
-**Checked:**
-- `git status --short -- .` → `?? ./`
-- `git rev-parse --show-toplevel` → `/home/ptec07/.hermes/hermes-agent`
-- `git remote -v` → `NousResearch/hermes-agent.git`
-- `vercel` CLI → 없음
-- `RENDER_API_KEY`, `VERCEL_TOKEN`, `GITHUB_TOKEN`, `GH_TOKEN` → 없음
-- `gh auth status` → 인증 안 됨/사용 불가
+**Files:**
+- Create: `frontend/src/serverlessParkingCore.test.ts`
+- Create: `frontend/src/serverlessParkingCore.ts`
+- Create: `frontend/src/data/parking_lots.json`
+- Create: `frontend/api/_core.js`
+- Create: `frontend/api/geocode.js`
+- Create: `frontend/api/parking-lots.js`
+- Create: `frontend/api/parking_lots.json`
+- Update: `frontend/package.json`
+- Update: `frontend/package-lock.json`
+- Update: `DEPLOYMENT.md`
+
+**Verification:**
+
+```bash
+cd frontend
+npm test -- --run
+npm run build
+VITE_API_BASE_URL=/api npx vercel build --prod
+npx vercel deploy --prebuilt --prod --yes
+```
+
+Final observed results:
+
+```text
+production URL: https://parking-availability-app.vercel.app
+/api/geocode?query=강남역: 200, lat=37.49808633653005, lng=127.02800140627488
+/api/parking-lots?...강남역 좌표...: 200, count=4
+browser smoke: 강남역 주변 주차장 + Kakao 지도 + 카드 4곳 정상
+```
 
 ---
 

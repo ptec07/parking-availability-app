@@ -84,9 +84,9 @@ availability_ratio = available_spaces / TPKCT
 환경변수 후보:
 
 ```bash
-SEOUL_OPEN_API_KEY=...
-KAKAO_REST_API_KEY=...
-KAKAO_JAVASCRIPT_KEY=...
+SEOUL_OPEN_API_KEY=[REDACTED]
+KAKAO_REST_API_KEY=[REDACTED]
+VITE_KAKAO_JAVASCRIPT_KEY=[REDACTED]
 ```
 
 ## 4. 1차 데이터 파이프라인

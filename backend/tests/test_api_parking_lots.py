@@ -40,7 +40,15 @@ def test_health_returns_ok():
 
 def test_parking_lots_filters_by_radius_and_returns_score():
     client, conn = make_client()
-    seed_record(conn, id="near", name="가까운 주차장", lat=37.5665, lng=126.9780)
+    seed_record(
+        conn,
+        id="near",
+        name="가까운 주차장",
+        lat=37.5665,
+        lng=126.9780,
+        total_spaces=100,
+        occupied_spaces=20,
+    )
     seed_record(conn, id="far", name="먼 주차장", lat=37.6500, lng=127.1000)
 
     response = client.get("/api/parking-lots?lat=37.5665&lng=126.9780&radius_m=500")
@@ -49,7 +57,7 @@ def test_parking_lots_filters_by_radius_and_returns_score():
     body = response.json()
     assert [item["id"] for item in body["items"]] == ["near"]
     item = body["items"][0]
-    assert item["available_spaces"] == 803
+    assert item["available_spaces"] == 80
     assert item["score"] >= 75
     assert item["label"] == "가능성 높음"
     assert item["distance_m"] == 0
