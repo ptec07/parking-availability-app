@@ -13,6 +13,8 @@ node_modules/
 dist/
 build/
 .vite/
+.vercel/
+frontend/.vercel/
 coverage/
 *.tsbuildinfo
 frontend/*.js
