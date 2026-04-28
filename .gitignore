@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+*.tsbuildinfo
+frontend/*.js
+frontend/*.d.ts
+
+# Env / local data
+.env
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log

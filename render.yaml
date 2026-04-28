@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: parking-availability-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: PARKING_DB_PATH
+        value: /var/data/parking.db
+      - key: PARKING_SEED_DEMO_DATA
+        value: "0"
+      - key: SEOUL_OPEN_API_KEY
+        sync: false
+      - key: KAKAO_REST_API_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
