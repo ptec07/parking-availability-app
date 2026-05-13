@@ -105,7 +105,12 @@ export function SearchResultsPage({
   return (
     <section className="results-page" aria-labelledby="results-title">
       <div className="results-page__header">
-        <p className="eyebrow">실시간 주차 가능성</p>
+        <div className="results-page__header-top">
+          <p className="eyebrow">실시간 주차 가능성</p>
+          <a className="home-link-button" href="/">
+            홈으로가기
+          </a>
+        </div>
         <h1 id="results-title">{destination.label} 주변 주차장</h1>
         <p className="hero-copy">좌표가 확인된 서울 공영주차장을 지도 미리보기와 카드 목록으로 보여줍니다.</p>
       </div>

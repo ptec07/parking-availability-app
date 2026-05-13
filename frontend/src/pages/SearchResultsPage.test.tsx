@@ -66,6 +66,25 @@ describe('SearchResultsPage', () => {
     expect(cards[1]).toHaveAccessibleName('가까운 주차장')
   })
 
+  it('renders a home link button in the results header', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ items: [], count: 0 }),
+      } as Response),
+    )
+
+    render(<SearchResultsPage destination={{ lat: 37.5665, lng: 126.978, label: '서울시청' }} kakaoJavaScriptKey="" />)
+
+    await screen.findByRole('heading', { name: '서울시청 주변 주차장' })
+    const homeLink = screen.getByRole('link', { name: '홈으로가기' })
+
+    expect(homeLink).toHaveAttribute('href', '/')
+    expect(homeLink).toHaveClass('home-link-button')
+  })
+
   it('allows sorting by distance', async () => {
     vi.stubGlobal(
       'fetch',
